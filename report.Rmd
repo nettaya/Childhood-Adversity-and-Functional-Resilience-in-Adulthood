@@ -1,0 +1,397 @@
+---
+title: "final_code"
+output: pdf_document
+date: "2023-05-30"
+---
+
+
+```{r load-packages, message = FALSE,echo=FALSE}
+library(knitr)
+library(tidyverse)
+library(broom)
+library(htmltools)
+library(schrute)
+library(lubridate)
+library(openintro)
+library(ROSE)
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(cowplot)
+library(kableExtra)
+```
+
+
+```{r setup, include = FALSE}
+opts_chunk$set(echo=FALSE) # hide source code in the document
+options(warn = -1)
+```
+
+```{r,echo=False}
+# Read the CSV file and load the data
+data <- read.csv("data_clean.csv")
+# Remove the 'X' column if present
+data_clean <- data%>%
+  subset(select = -c(X))
+column_names <- colnames(data_clean)
+
+# Find the index of the "financial_distress" column
+column_index <- which(column_names == "financial_distress")
+
+# Modify the column name
+column_names[column_index] <- "financial_fam_distress"
+
+# Update the column names in the data frame
+colnames(data_clean) <- column_names
+```
+
+```{r,echo=False}
+# Remove the 'ID' column from the data frame
+data_clean_no_id = data_clean%>%
+  subset(select = -c(ID))
+```
+
+```{r}
+# Select relevant columns for each distress
+
+physical_distress <- data_clean %>%
+  select("ID","parental_violence","highest_degree","full_army_service","chronic_medical_condition","friends_leisure_time","national_insurance","gross_income","cover_household_expenses")
+
+physical_distress <- lapply(physical_distress, as.numeric)
+physical_distress <- as.data.frame(physical_distress)
+
+mental_distress <- data_clean %>%
+  select("ID","living_with_drugs_user_or_drinking_problem","highest_degree","full_army_service","chronic_medical_condition","friends_leisure_time","national_insurance","gross_income","cover_household_expenses")
+
+mental_distress <- lapply(mental_distress, as.numeric)
+mental_distress <- as.data.frame(mental_distress)
+
+environmental_distress <- data_clean %>%
+  select("ID","family_bad_mental_health","highest_degree","full_army_service","chronic_medical_condition","friends_leisure_time","national_insurance","gross_income","cover_household_expenses")
+
+
+environmental_distress <- lapply(environmental_distress, as.numeric)
+environmental_distress <- as.data.frame(environmental_distress)
+
+
+financial_distress <- data_clean %>%
+select("ID","financial_fam_distress","highest_degree","full_army_service","chronic_medical_condition","friends_leisure_time","national_insurance","gross_income","cover_household_expenses")
+
+financial_distress <- lapply(financial_distress, as.numeric)
+financial_distress <- as.data.frame(financial_distress)
+
+variables <- c("highest_degree", "full_army_service", "chronic_medical_condition", "friends_leisure_time", "national_insurance", "gross_income", "cover_household_expenses")
+
+
+```
+
+```{r}
+# Physical distress variables
+physical_vars <- c("phisical_abuse_history_in_boardingschool", "sexual_abuse_boarding_school_children", "abuse_boarding_school_stuff", "adult_Inappropriate_sexual_behavior", "parental_violence")
+
+# Normalize physical distress variables to a scale of 0-1
+normalized_physical <- data_clean %>%
+  mutate_at(physical_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for physical distress
+data_clean <- data_clean %>%
+  mutate(physical_distress = rowMeans(normalized_physical[physical_vars], na.rm = TRUE))
+
+# Mental distress variables
+mental_vars <- c("sudden_death_relative", "verbal_violence_adult_scared", "self_riskevent", "bad_Family_relationships", "living_with_drugs_user_or_drinking_problem")
+
+# Normalize mental distress variables to a scale of 0-1
+normalized_mental <- data_clean %>%
+  mutate_at(mental_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for mental distress
+data_clean <- data_clean %>%
+  mutate(mental_distress = rowMeans(normalized_mental[mental_vars], na.rm = TRUE))
+
+# Environmental distress variables
+environmental_vars <- c("witnessed_violence_against_mother", "living_with_drugs_user_or_drinking_problem", "witnessed_life_threatening_event", "relative_has_been_in_prison", "family_bad_mental_health")
+
+# Normalize environmental distress variables to a scale of 0-1
+normalized_environmental <- data_clean %>%
+  mutate_at(environmental_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for environmental distress
+data_clean <- data_clean %>%
+  mutate(environmental_distress = rowMeans(normalized_environmental[environmental_vars], na.rm = TRUE))
+
+# Financial distress variables
+financial_vars <- c("financial_fam_distress", "lack_of_essentialsandprotection_parentdrunk")
+
+# Normalize financial distress variables to a scale of 0-1
+normalized_financial <- data_clean %>%
+  mutate_at(financial_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for financial distress
+data_clean <- data_clean %>%
+  mutate(financial_distress = rowMeans(normalized_financial[financial_vars], na.rm = TRUE))
+```
+
+```{r}
+education_vars <- c("secondary_education", "highest_degree", "professional_training")
+# Normalize physical distress variables to a scale of 0-1
+normalized_education <- data_clean %>%
+  mutate_at(education_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for physical distress
+data_clean <- data_clean %>%
+  mutate(education_group = rowMeans(normalized_education[education_vars], na.rm = TRUE))
+
+service_vars <- c("is_currently_serving_army")
+
+# Normalize physical distress variables to a scale of 0-1
+normalized_service <- data_clean %>%
+  mutate_at(service_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for physical distress
+data_clean <- data_clean %>%
+  mutate(service_group = rowMeans(normalized_service[service_vars], na.rm = TRUE))
+
+health_vars <- c("health_condition", "chronic_medical_condition")
+
+# Normalize physical distress variables to a scale of 0-1
+normalized_health <- data_clean %>%
+  mutate_at(health_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for physical distress
+data_clean <- data_clean %>%
+  mutate(health_group = rowMeans(normalized_health[health_vars], na.rm = TRUE))
+
+
+social_vars <- c("often_phonecall_friends", "friends_leisure_time", "get_advice_from_relative")
+
+# Normalize physical distress variables to a scale of 0-1
+normalized_social <- data_clean %>%
+  mutate_at(social_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for physical distress
+data_clean <- data_clean %>%
+  mutate(social_group = rowMeans(normalized_social[social_vars], na.rm = TRUE))
+
+
+financial_vars <- c("jobs_num", "full_time_job", "employment_status", "national_insurance", "gross_income", "cover_household_expenses", "forgoing_medical_treatment_financial_difficulties")
+numeric_financial_vars <- financial_vars[sapply(data_clean[financial_vars], is.numeric)]
+
+# Normalize physical distress variables to a scale of 0-1
+normalized_financial <- data_clean %>%
+  mutate_at(numeric_financial_vars, function(x) (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE)))
+
+# Create new column for physical distress
+data_clean <- data_clean %>%
+  mutate(financial_group = rowMeans(normalized_financial[numeric_financial_vars], na.rm = TRUE))
+```
+
+```{r}
+# Select relevant columns for the normalized data set
+data_clean_norm= data_clean %>% select(financial_group,social_group,health_group,service_group,education_group,financial_distress,environmental_distress,mental_distress,physical_distress)
+
+```
+
+```{r}
+# Show there are individuals who did not experiance distress in the data set
+no_distresses_count <- nrow(data_clean_norm[data_clean_norm$financial_distress == 0 & data_clean_norm$mental_distress == 0 & data_clean_norm$environmental_distress == 0 & data_clean_norm$physical_distress == 0,])
+no_distresses_count
+```
+
+```{r}
+# Create confidence intervals for each category
+calculate_difference <- function(facet_var) {
+  financial_avg <- mean(data_clean_norm[data_clean_norm$financial_distress > 0, facet_var], na.rm = TRUE)
+  mental_avg <- mean(data_clean_norm[data_clean_norm$mental_distress > 0, facet_var], na.rm = TRUE)
+  environmental_avg <- mean(data_clean_norm[data_clean_norm$environmental_distress > 0, facet_var], na.rm = TRUE)
+  physical_avg <- mean(data_clean_norm[data_clean_norm$physical_distress > 0, facet_var], na.rm = TRUE)
+
+  general_avg <- mean(data_clean_norm[[facet_var]], na.rm = TRUE)
+
+  financial_diff <- financial_avg - general_avg
+  mental_diff <- mental_avg - general_avg
+  environmental_diff <- environmental_avg - general_avg
+  physical_diff <- physical_avg - general_avg
+
+  # Perform t-test to calculate confidence intervals
+  t_test <- t.test(data_clean_norm[data_clean_norm$financial_distress > 0, facet_var], mu = general_avg)
+
+  # Extract the confidence intervals from the t-test result
+  financial_ci <- t_test$conf.int
+  
+  t_test <- t.test(data_clean_norm[data_clean_norm$mental_distress > 0, facet_var], mu = general_avg)
+  mental_ci <- t_test$conf.int
+  
+  t_test <- t.test(data_clean_norm[data_clean_norm$environmental_distress > 0, facet_var], mu = general_avg)
+  environmental_ci <- t_test$conf.int
+  
+  t_test <- t.test(data_clean_norm[data_clean_norm$physical_distress > 0, facet_var], mu = general_avg)
+  physical_ci <- t_test$conf.int
+
+  # Create a data frame for the facet variable
+  df <- data.frame(
+    facet_variable = facet_var,
+    distress_category = c( "physical_distress", "mental_distress", "environmental_distress","financial_distress"),
+    mean_diff = c(financial_diff, mental_diff, environmental_diff, physical_diff),
+    ymin = c(financial_ci[1] - general_avg, mental_ci[1] - general_avg, environmental_ci[1] - general_avg, physical_ci[1] - general_avg),
+    ymax = c(financial_ci[2] - general_avg, mental_ci[2] - general_avg, environmental_ci[2] - general_avg, physical_ci[2] - general_avg),
+    avg_greater_than_zero = c(financial_avg - general_avg, mental_avg - general_avg, environmental_avg - general_avg, physical_avg - general_avg),
+    general_avg = rep(0, 4)
+  )
+
+  return(df)
+}
+
+# Create an empty data frame to store the results
+combined_df <- data.frame()
+
+# List of facet variables
+facet_vars <- c("education_group", "service_group", "health_group", "social_group", "financial_group")
+
+# Calculate mean difference and confidence interval for each facet variable
+for (facet_var in facet_vars) {
+  facet_df <- calculate_difference(facet_var)
+
+  # Append the current facet data frame to the overall combined data frame
+  combined_df <- rbind(combined_df, facet_df)
+}
+
+ggplot(combined_df, aes(x = distress_category, y = mean_diff)) +
+  geom_errorbar(aes(ymin = ymin, ymax = ymax), width = 0.1, position = position_dodge(width = 0.95)) +
+  geom_point(aes(y = avg_greater_than_zero), color = "brown", size = 3, position = position_dodge(width = 0.9)) +
+  geom_text(aes(label = round(avg_greater_than_zero, 4)), vjust = -0.8, color = "brown", size = 3, position = position_dodge(width = 0.9)) +
+  labs(title = "Confidence Interval for Difference in Distress Categories",
+       x = "Distress Category",
+       y = "Difference from General Average") +
+  facet_wrap(~facet_variable, scales = "free") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+statistics:
+```{r}
+# Perform linear regression for each distress type against the group types
+results <- lapply(names(data_clean_norm)[6:9], function(distress_type) {
+  formula <- as.formula(paste(distress_type, paste(names(data_clean_norm)[1:5], collapse = " + "), sep = " ~ "))
+  lm_fit <- lm(formula, data = data_clean_norm)
+  
+  # Extract coefficients, p-values, and additional statistics
+  coefficients <- tidy(lm_fit) %>%
+    filter(term != "(Intercept)") %>%
+    mutate(distress_type = distress_type)
+  
+  # Filter significant independent variables
+  significant_vars <- coefficients %>%
+    filter(p.value < 0.1) %>%
+    pull(term)
+  
+  # Compute additional statistics
+  summary_stats <- summary(lm_fit)
+  rsquared <- summary_stats$r.squared
+  adj_rsquared <- summary_stats$adj.r.squared
+  
+  list(significant_vars = significant_vars, coefficients = coefficients, rsquared = rsquared, adj_rsquared = adj_rsquared)
+})
+
+# Combine the results into a single data frame
+significant_vars_df <- data.frame(
+  distress_type = factor(names(data_clean_norm)[6:9], levels = names(data_clean_norm)[6:9]),
+  significant_vars = sapply(results, function(result) toString(result$significant_vars)),
+  coefficients = sapply(results, function(result) toString(paste(result$coefficients$term, "=", result$coefficients$estimate, sep = ""))),
+  p_values = sapply(results, function(result) toString(paste(result$coefficients$term, "=", round(result$coefficients$p.value, 4), sep = ""))),
+  rsquared = sapply(results, function(result) result$rsquared),
+  adj_rsquared = sapply(results, function(result) result$adj_rsquared),
+  stringsAsFactors = FALSE
+)
+
+# Display the significant independent variables and associated statistics for each group variable
+kable(significant_vars_df, align = "c", format = "html", col.names = c("Group Variable", "Significant Independent Variables", "Coefficients", "p-values", "F-Statistic", "F-Table Value")) %>%
+  kable_styling(bootstrap_options = c("striped", "condensed"), full_width = FALSE) %>%
+  add_header_above(c(" " = 1, "Significant Independent Variables" = 3, "Additional Statistics" = 2), align = "c") %>%
+  row_spec(0, bold = TRUE, background = "#f2f2f2", color = "#333333") %>%
+  kable_classic(font_size = 16)
+```
+
+
+```{r}
+distress_var <- names(data_clean_norm)[6:9]
+group_vars <- names(data_clean_norm)[1:5]
+alpha <- 0.15
+
+# Perform linear regression for each group variable against the distress variable
+results <- lapply(group_vars, function(group_var) {
+  formula <- as.formula(paste(group_var , paste(distress_var, collapse = " + "), sep = " ~ "))
+  lm_fit <- lm(formula, data = data_clean_norm)
+  
+  # Extract coefficients, p-values, and additional statistics
+  coefficients <- tidy(lm_fit) %>%
+    filter(term != "(Intercept)")
+  
+  # Filter significant independent variables
+  significant_vars <- coefficients %>%
+    filter(p.value < 0.1) %>%
+    pull(term)
+  
+  # Compute additional statistics
+  summary_stats <- summary(lm_fit)
+  rsquared <- summary_stats$r.squared
+  adj_rsquared <- summary_stats$adj.r.squared
+  f_statistic <- summary_stats$fstatistic[1]
+  
+  # Residual analysis
+  residuals <- resid(lm_fit)
+  
+  # Residual plot
+  plot_title <- paste(group_var)
+  plot <- ggplot(data.frame(residuals), aes(x = seq_along(residuals), y = residuals)) +
+    geom_point() +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    labs(title = plot_title, x = "Observation", y = "Residual") +
+    theme_minimal()
+  
+  list(group_var = group_var, significant_vars = significant_vars, coefficients = coefficients, rsquared = rsquared, adj_rsquared = adj_rsquared, f_statistic = f_statistic, residual_plot = plot)
+})
+
+# Combine the results into a single data frame
+significant_vars_df <- data.frame(
+  group_var = sapply(results, function(result) result$group_var),
+  significant_vars = sapply(results, function(result) toString(result$significant_vars)),
+  coefficients = sapply(results, function(result) toString(paste(result$coefficients$term, "=", result$coefficients$estimate, sep = ""))),
+  p_values = sapply(results, function(result) toString(paste(result$coefficients$term, "=", round(result$coefficients$p.value, 4), sep = ""))),
+  f_statistic = sapply(results, function(result) result$f_statistic),
+  f_table_value = qf(1 - alpha, df1 = 1, df2 = length(data_clean_norm) - length(group_vars) - 1),
+  stringsAsFactors = FALSE
+)
+
+# Display the significant independent variables and associated statistics for each group variable
+significant_vars_df
+
+# Display the residual plots
+for (result in results) {
+  print(result$residual_plot)
+}
+
+library(ggplot2)
+library(patchwork)
+
+# Combine the residual plots into a single facet plot
+facet_plots <- lapply(results, function(result) {
+  result$residual_plot + 
+    theme_minimal() +
+    theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +  # Remove x-axis labels and ticks
+    theme(axis.text.y = element_blank(), axis.ticks.y = element_blank()) +  # Remove y-axis labels and ticks
+    geom_point(size = 1)  # Adjust the size of the points
+})
+
+# Arrange the plots in a 2x3 grid
+facet_plot <- wrap_plots(facet_plots, ncol = 3, nrow = 2)
+
+# Display the combined data frame and the facet plot
+significant_vars_df
+facet_plot
+
+
+
+```
